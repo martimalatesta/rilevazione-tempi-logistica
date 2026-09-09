@@ -1,10 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
+import { Truck, ClipboardCheck, RotateCcw, PackageCheck, Trash2, Pause, Play, Square, Camera, X } from 'lucide-react'
 
-// URL della Web App Google Apps Script (endpoint che scrive sul Google Sheet)
+// URL della Web App Google Apps Script (endpoint che scrive sul Google Sheet e, per Messa a banco, su Drive)
 const SCRIPT_URL =
   'https://script.google.com/macros/s/AKfycbxtWFazVBNKDSC_VBAk8X2Ro7OYgRaI58pkx3A9EzEwrd5kZ83vYXQklwCkHx0nb8JzZA/exec'
 
-const ACTIVITIES = ['Scarico', 'Spunta', 'Riconta', 'Messa a banco', 'Smaltimento imballaggi']
+const ACTIVITIES = [
+  { name: 'Scarico', icon: Truck },
+  { name: 'Spunta', icon: ClipboardCheck },
+  { name: 'Riconta', icon: RotateCcw },
+  { name: 'Messa a banco', icon: PackageCheck },
+  { name: 'Smaltimento imballaggi', icon: Trash2 },
+]
+
+const PHOTO_ACTIVITY = 'Messa a banco'
 
 function getOperatorId() {
   const key = 'rt_operator_id'
@@ -27,68 +36,135 @@ function formatElapsed(ms) {
   return `${m}:${s}`
 }
 
-function durataMinuti(start, end) {
-  return Math.round(((end.getTime() - start.getTime()) / 60000) * 100) / 100
+// Ridimensiona/comprime la foto lato client prima dell'invio, per upload veloci anche con rete debole
+function resizeImage(file, maxWidth = 1280, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 export default function App() {
   const [operatorId] = useState(getOperatorId)
   const [activity, setActivity] = useState(null)
-  const [status, setStatus] = useState('idle') // idle | running | stopped
-  const [startTime, setStartTime] = useState(null)
-  const [endTime, setEndTime] = useState(null)
+  const [status, setStatus] = useState('idle') // idle | running | paused | stopped
+  const [startWallClock, setStartWallClock] = useState(null)
+  const [endWallClock, setEndWallClock] = useState(null)
+  const [accumulatedMs, setAccumulatedMs] = useState(0)
+  const [displayElapsed, setDisplayElapsed] = useState(0)
   const [note, setNote] = useState('')
-  const [elapsed, setElapsed] = useState(0)
+  const [photoDataUrl, setPhotoDataUrl] = useState(null)
   const [saving, setSaving] = useState(false)
-  const [feedback, setFeedback] = useState(null) // { type: 'success' | 'error', message }
+  const [feedback, setFeedback] = useState(null)
+  const runStartRef = useRef(null)
+  const fileInputRef = useRef(null)
   const noteRef = useRef(null)
 
+  // Timer live: aggiorna il display ogni secondo mentre è "running"
   useEffect(() => {
-    if (status !== 'running' || !startTime) return
-    const interval = setInterval(() => setElapsed(Date.now() - startTime.getTime()), 1000)
+    if (status !== 'running') return
+    const tick = () => setDisplayElapsed(accumulatedMs + (Date.now() - runStartRef.current))
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [status, startTime])
+  }, [status, accumulatedMs])
 
-  function selectActivity(a) {
+  function selectActivity(act) {
     if (status !== 'idle') return
-    setActivity(a)
+    const now = new Date()
+    setActivity(act)
+    setStartWallClock(now)
+    runStartRef.current = now.getTime()
+    setAccumulatedMs(0)
+    setDisplayElapsed(0)
+    setStatus('running')
   }
 
-  function start() {
-    if (!activity) return
-    setStartTime(new Date())
-    setElapsed(0)
+  function pause() {
+    if (status !== 'running') return
+    const now = Date.now()
+    setAccumulatedMs((prev) => prev + (now - runStartRef.current))
+    setStatus('paused')
+  }
+
+  function resume() {
+    if (status !== 'paused') return
+    runStartRef.current = Date.now()
     setStatus('running')
   }
 
   function stop() {
-    setEndTime(new Date())
+    const now = Date.now()
+    setAccumulatedMs((prev) => {
+      const total = status === 'running' ? prev + (now - runStartRef.current) : prev
+      setDisplayElapsed(total)
+      return total
+    })
+    setEndWallClock(new Date())
     setStatus('stopped')
     setTimeout(() => noteRef.current?.focus(), 50)
   }
 
-  function reset() {
+  function cancelEntry() {
     setActivity(null)
     setStatus('idle')
-    setStartTime(null)
-    setEndTime(null)
+    setStartWallClock(null)
+    setEndWallClock(null)
+    setAccumulatedMs(0)
+    setDisplayElapsed(0)
     setNote('')
-    setElapsed(0)
+    setPhotoDataUrl(null)
     setFeedback(null)
   }
 
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const dataUrl = await resizeImage(file)
+      setPhotoDataUrl(dataUrl)
+    } catch {
+      setFeedback({ type: 'error', message: 'Foto non valida. Riprova.' })
+    }
+  }
+
   async function save() {
-    if (!startTime || !endTime) return
     setSaving(true)
     setFeedback(null)
 
+    const durata = Math.round((accumulatedMs / 60000) * 100) / 100
     const payload = {
       operatore: operatorId,
-      attivita: activity,
-      oraInizio: formatClock(startTime),
-      oraFine: formatClock(endTime),
-      durata: durataMinuti(startTime, endTime),
+      attivita: activity.name,
+      oraInizio: formatClock(startWallClock),
+      oraFine: formatClock(endWallClock),
+      durata,
       note: note.trim(),
+    }
+
+    if (activity.name === PHOTO_ACTIVITY && photoDataUrl) {
+      payload.foto = photoDataUrl.split(',')[1]
+      payload.fotoMimeType = 'image/jpeg'
+      payload.fotoNome = `${operatorId}_${Date.now()}`
     }
 
     try {
@@ -100,7 +176,7 @@ export default function App() {
       const data = await res.json().catch(() => null)
       if (res.ok && data && data.result === 'success') {
         setFeedback({ type: 'success', message: 'Salvato nel foglio' })
-        setTimeout(reset, 1100)
+        setTimeout(cancelEntry, 1100)
       } else {
         setFeedback({ type: 'error', message: 'Salvataggio non riuscito. Riprova.' })
       }
@@ -111,6 +187,9 @@ export default function App() {
     }
   }
 
+  const showPhoto = activity?.name === PHOTO_ACTIVITY
+  const ActivityIcon = activity?.icon
+
   return (
     <div className="app">
       <header className="header">
@@ -119,57 +198,111 @@ export default function App() {
       </header>
 
       <main className="main">
-        {status !== 'running' && (
-          <section>
+        {status === 'idle' && (
+          <section className="activity-section">
             <p className="section-label">Scegli l&rsquo;attività</p>
             <div className="activity-list">
-              {ACTIVITIES.map((a) => (
-                <button
-                  key={a}
-                  className={`activity-row ${activity === a ? 'is-selected' : ''}`}
-                  disabled={status === 'stopped'}
-                  onClick={() => selectActivity(a)}
-                >
-                  {a}
-                </button>
-              ))}
+              {ACTIVITIES.map((a) => {
+                const Icon = a.icon
+                return (
+                  <button key={a.name} className="activity-row" onClick={() => selectActivity(a)}>
+                    <span className="activity-icon">
+                      <Icon size={26} strokeWidth={2} />
+                    </span>
+                    <span className="activity-label">{a.name}</span>
+                  </button>
+                )
+              })}
             </div>
           </section>
         )}
 
-        {activity && status === 'idle' && (
-          <button className="cta-btn" onClick={start}>
-            Avvia
-          </button>
-        )}
-
-        {status === 'running' && (
+        {(status === 'running' || status === 'paused') && ActivityIcon && (
           <div className="timer-hero">
             <div className="timer-top">
-              <span className="live-dot" />
-              <span className="timer-activity">{activity}</span>
+              <ActivityIcon size={22} strokeWidth={2} />
+              <span className="timer-activity">{activity.name}</span>
             </div>
-            <div className="timer-display">{formatElapsed(elapsed)}</div>
-            <button className="cta-btn cta-btn--stop" onClick={stop}>
-              Ferma
+
+            <div className={`timer-display ${status === 'paused' ? 'is-paused' : ''}`}>
+              {formatElapsed(displayElapsed)}
+            </div>
+
+            {status === 'paused' && <span className="pause-badge">In pausa</span>}
+
+            <div className="timer-controls">
+              {status === 'running' ? (
+                <button className="control-btn control-btn--pause" onClick={pause}>
+                  <Pause size={22} />
+                  Pausa
+                </button>
+              ) : (
+                <button className="control-btn control-btn--resume" onClick={resume}>
+                  <Play size={22} />
+                  Riprendi
+                </button>
+              )}
+              <button className="control-btn control-btn--stop" onClick={stop}>
+                <Square size={20} />
+                Termina
+              </button>
+            </div>
+
+            <button className="cancel-link" onClick={cancelEntry}>
+              Annulla rilevazione
             </button>
           </div>
         )}
 
-        {status === 'stopped' && (
+        {status === 'stopped' && activity && (
           <div className="summary">
             <div className="summary-row">
+              <span>Attività</span>
+              <strong>{activity.name}</strong>
+            </div>
+            <div className="summary-row">
               <span>Inizio</span>
-              <strong>{formatClock(startTime)}</strong>
+              <strong>{formatClock(startWallClock)}</strong>
             </div>
             <div className="summary-row">
               <span>Fine</span>
-              <strong>{formatClock(endTime)}</strong>
+              <strong>{formatClock(endWallClock)}</strong>
             </div>
             <div className="summary-row">
-              <span>Durata</span>
-              <strong>{durataMinuti(startTime, endTime)} min</strong>
+              <span>Durata attiva</span>
+              <strong>{Math.round((accumulatedMs / 60000) * 100) / 100} min</strong>
             </div>
+
+            {showPhoto && (
+              <div className="photo-block">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handlePhotoChange}
+                  style={{ display: 'none' }}
+                />
+                {!photoDataUrl ? (
+                  <button className="photo-btn" onClick={() => fileInputRef.current?.click()}>
+                    <Camera size={20} />
+                    Scatta foto
+                  </button>
+                ) : (
+                  <div className="photo-preview">
+                    <img src={photoDataUrl} alt="Foto messa a banco" />
+                    <div className="photo-actions">
+                      <button className="ghost-btn" onClick={() => fileInputRef.current?.click()}>
+                        Rifai foto
+                      </button>
+                      <button className="icon-btn" onClick={() => setPhotoDataUrl(null)} aria-label="Rimuovi foto">
+                        <X size={18} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <textarea
               ref={noteRef}
@@ -182,7 +315,7 @@ export default function App() {
             {feedback && <div className={`feedback feedback--${feedback.type}`}>{feedback.message}</div>}
 
             <div className="button-row">
-              <button className="ghost-btn" onClick={reset} disabled={saving}>
+              <button className="ghost-btn" onClick={cancelEntry} disabled={saving}>
                 Annulla
               </button>
               <button className="cta-btn" onClick={save} disabled={saving}>
