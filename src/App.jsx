@@ -167,6 +167,8 @@ export default function App() {
       payload.fotoNome = `${operatorId}_${Date.now()}`
     }
 
+    console.log('Dimensione payload (KB):', Math.round(JSON.stringify(payload).length / 1024))
+
     try {
       const res = await fetch(SCRIPT_URL, {
         method: 'POST',
@@ -180,8 +182,8 @@ export default function App() {
       } else {
         setFeedback({ type: 'error', message: 'Salvataggio non riuscito. Riprova.' })
       }
-    } catch {
-      setFeedback({ type: 'error', message: 'Nessuna connessione. Riprova.' })
+    } catch (err) {
+      setFeedback({ type: 'error', message: 'Errore: ' + (err && err.message ? err.message : 'connessione assente') })
     } finally {
       setSaving(false)
     }
