@@ -50,7 +50,6 @@ const ACTIVITY_FIELDS = {
   Spunta: ORDINE_FIELDS,
   Riconta: ORDINE_FIELDS,
   'Messa a banco': [
-    ...ORDINE_FIELDS,
     { key: 'interruzioneCliente', label: 'Interruzione cliente', type: 'interruzione', required: true },
     {
       key: 'riservaAlta',
@@ -66,6 +65,7 @@ const ACTIVITY_FIELDS = {
       options: ['Sì', 'No'],
       required: true,
     },
+    ...ORDINE_FIELDS,
   ],
   'Smaltimento imballaggi': [],
 }
@@ -415,6 +415,10 @@ export default function App() {
             {activityFields.length > 0 && (
               <div className="fields-section">
                 <p className="section-label">Dettagli attività</p>
+                <p className="fields-intro">
+                  Aiutaci fornendo informazioni utili per analizzare i dati — i campi con <span className="required-mark">*</span> sono
+                  obbligatori, gli altri facoltativi.
+                </p>
                 {activityFields.map((field) => (
                   <div className="field-group" key={field.key}>
                     <label className="field-label">
