@@ -15,6 +15,61 @@ const ACTIVITIES = [
 
 const PHOTO_ACTIVITY = 'Messa a banco'
 
+const REPARTI = [
+  'Utensileria',
+  'Elettricità',
+  'Ferramenta',
+  'Falegnameria',
+  'Piastrelle',
+  'Sanitari',
+  'Edilizia',
+  'Idraulica',
+  'Vernici',
+]
+
+const INTERRUZIONE_OPTIONS = [
+  'Nessuna',
+  'Circa 1 minuto',
+  'Circa 5 minuti',
+  'Circa 10 minuti',
+  'Circa 15 minuti',
+  'Circa 20 minuti',
+  'Altro',
+]
+
+const ORDINE_FIELDS = [
+  { key: 'numeroOrdine', label: 'Numero ordine', type: 'text', required: false },
+  { key: 'numeroBancali', label: 'Numero bancali', type: 'number', required: false },
+  { key: 'numeroArticoli', label: 'Numero articoli', type: 'number', required: false },
+  { key: 'reparto', label: 'Reparto', type: 'select', options: REPARTI, required: false },
+]
+
+// Campi extra per attività, mostrati nella schermata di riepilogo prima del salvataggio
+const ACTIVITY_FIELDS = {
+  Scarico: [{ key: 'origine', label: 'Origine', type: 'choice', options: ['Corriere', 'Piattaforma'], required: false }],
+  Spunta: ORDINE_FIELDS,
+  Riconta: ORDINE_FIELDS,
+  'Messa a banco': [
+    ...ORDINE_FIELDS,
+    { key: 'interruzioneCliente', label: 'Interruzione cliente', type: 'interruzione', required: true },
+    {
+      key: 'riservaAlta',
+      label: 'Hai dovuto mettere alcuni prodotti in riserva alta?',
+      type: 'choice',
+      options: ['Sì', 'No'],
+      required: true,
+    },
+    {
+      key: 'zonaStoccaggio',
+      label: 'Hai dovuto riportare alcuni prodotti nella zona logistica di stoccaggio?',
+      type: 'choice',
+      options: ['Sì', 'No'],
+      required: true,
+    },
+  ],
+  'Smaltimento imballaggi': [],
+}
+
 function getOperatorId() {
   const key = 'rt_operator_id'
   let id = localStorage.getItem(key)
@@ -62,6 +117,52 @@ function resizeImage(file, maxWidth = 1280, quality = 0.75) {
   })
 }
 
+function ExtraField({ field, value, onChange }) {
+  if (field.type === 'text') {
+    return <input type="text" className="field-input" value={value || ''} onChange={(e) => onChange(e.target.value)} />
+  }
+  if (field.type === 'number') {
+    return (
+      <input
+        type="number"
+        inputMode="numeric"
+        className="field-input"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    )
+  }
+  if (field.type === 'select') {
+    return (
+      <select className="field-input" value={value || ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Seleziona…</option>
+        {field.options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    )
+  }
+  if (field.type === 'choice') {
+    return (
+      <div className="toggle-group">
+        {field.options.map((opt) => (
+          <button
+            key={opt}
+            type="button"
+            className={`toggle-btn ${value === opt ? 'is-active' : ''}`}
+            onClick={() => onChange(opt)}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    )
+  }
+  return null
+}
+
 export default function App() {
   const [operatorId] = useState(getOperatorId)
   const [activity, setActivity] = useState(null)
@@ -71,6 +172,7 @@ export default function App() {
   const [accumulatedMs, setAccumulatedMs] = useState(0)
   const [displayElapsed, setDisplayElapsed] = useState(0)
   const [note, setNote] = useState('')
+  const [extraFields, setExtraFields] = useState({})
   const [photoDataUrl, setPhotoDataUrl] = useState(null)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState(null)
@@ -131,8 +233,13 @@ export default function App() {
     setAccumulatedMs(0)
     setDisplayElapsed(0)
     setNote('')
+    setExtraFields({})
     setPhotoDataUrl(null)
     setFeedback(null)
+  }
+
+  function setField(key, value) {
+    setExtraFields((prev) => ({ ...prev, [key]: value }))
   }
 
   async function handlePhotoChange(e) {
@@ -147,7 +254,28 @@ export default function App() {
     }
   }
 
+  const activityFields = activity ? ACTIVITY_FIELDS[activity.name] || [] : []
+
+  function missingRequiredField() {
+    return activityFields.find((f) => {
+      if (!f.required) return false
+      if (f.type === 'interruzione') {
+        const val = extraFields[f.key]
+        if (!val) return true
+        if (val === 'Altro' && !extraFields.interruzioneAltroTesto?.trim()) return true
+        return false
+      }
+      return !extraFields[f.key]
+    })
+  }
+
   async function save() {
+    const missing = missingRequiredField()
+    if (missing) {
+      setFeedback({ type: 'error', message: `Campo obbligatorio mancante: ${missing.label}` })
+      return
+    }
+
     setSaving(true)
     setFeedback(null)
 
@@ -160,6 +288,15 @@ export default function App() {
       durata,
       note: note.trim(),
     }
+
+    activityFields.forEach((f) => {
+      if (f.type === 'interruzione') {
+        const val = extraFields[f.key] || ''
+        payload[f.key] = val === 'Altro' ? `Altro: ${extraFields.interruzioneAltroTesto || ''}` : val
+      } else {
+        payload[f.key] = extraFields[f.key] || ''
+      }
+    })
 
     if (activity.name === PHOTO_ACTIVITY && photoDataUrl) {
       payload.foto = photoDataUrl.split(',')[1]
@@ -274,6 +411,31 @@ export default function App() {
               <span>Durata attiva</span>
               <strong>{Math.round((accumulatedMs / 60000) * 100) / 100} min</strong>
             </div>
+
+            {activityFields.length > 0 && (
+              <div className="fields-section">
+                <p className="section-label">Dettagli attività</p>
+                {activityFields.map((field) => (
+                  <div className="field-group" key={field.key}>
+                    <label className="field-label">
+                      {field.label}
+                      {field.required && <span className="required-mark"> *</span>}
+                    </label>
+                    <ExtraField field={field} value={extraFields[field.key]} onChange={(v) => setField(field.key, v)} />
+                    {field.type === 'interruzione' && extraFields[field.key] === 'Altro' && (
+                      <input
+                        type="text"
+                        className="field-input"
+                        placeholder="Specifica..."
+                        value={extraFields.interruzioneAltroTesto || ''}
+                        onChange={(e) => setField('interruzioneAltroTesto', e.target.value)}
+                        style={{ marginTop: 8 }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {showPhoto && (
               <div className="photo-block">
