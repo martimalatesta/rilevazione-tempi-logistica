@@ -37,19 +37,21 @@ const INTERRUZIONE_OPTIONS = [
   'Altro',
 ]
 
-const ORDINE_FIELDS = [
+const REPARTO_FIELD = { key: 'reparto', label: 'Reparto', type: 'select', options: REPARTI, required: true }
+
+const ORDINE_EXTRA_FIELDS = [
   { key: 'numeroOrdine', label: 'Numero ordine', type: 'text', required: false },
   { key: 'numeroBancali', label: 'Numero bancali', type: 'number', required: false },
   { key: 'numeroArticoli', label: 'Numero articoli', type: 'number', required: false },
-  { key: 'reparto', label: 'Reparto', type: 'select', options: REPARTI, required: false },
 ]
 
 // Campi extra per attività, mostrati nella schermata di riepilogo prima del salvataggio
 const ACTIVITY_FIELDS = {
   Scarico: [{ key: 'origine', label: 'Origine', type: 'choice', options: ['Corriere', 'Piattaforma'], required: false }],
-  Spunta: ORDINE_FIELDS,
-  Riconta: ORDINE_FIELDS,
+  Spunta: [REPARTO_FIELD, ...ORDINE_EXTRA_FIELDS],
+  Riconta: [REPARTO_FIELD, ...ORDINE_EXTRA_FIELDS],
   'Messa a banco': [
+    REPARTO_FIELD,
     { key: 'interruzioneCliente', label: 'Interruzione cliente', type: 'interruzione', required: true },
     {
       key: 'riservaAlta',
@@ -65,7 +67,7 @@ const ACTIVITY_FIELDS = {
       options: ['Sì', 'No'],
       required: true,
     },
-    ...ORDINE_FIELDS,
+    ...ORDINE_EXTRA_FIELDS,
   ],
   'Smaltimento imballaggi': [],
 }
