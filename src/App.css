@@ -359,6 +359,13 @@ button {
   color: #fff;
 }
 
+.photo-hint {
+  font-size: 14px;
+  color: var(--ink-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
 .photo-btn {
   display: flex;
   align-items: center;

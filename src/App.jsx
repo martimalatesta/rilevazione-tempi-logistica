@@ -439,6 +439,7 @@ export default function App() {
 
             {showPhoto && (
               <div className="photo-block">
+                <p className="photo-hint">Allega foto dell&rsquo;elenco dei prodotti che stai mettendo a banco</p>
                 <input
                   ref={fileInputRef}
                   type="file"
