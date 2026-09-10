@@ -37,7 +37,7 @@ const INTERRUZIONE_OPTIONS = [
   'Altro',
 ]
 
-const REPARTO_FIELD = { key: 'reparto', label: 'Reparto', type: 'select', options: REPARTI, required: true }
+const REPARTO_FIELD = { key: 'reparto', label: 'Reparto', type: 'select', options: REPARTI, required: false }
 
 const ORDINE_EXTRA_FIELDS = [
   { key: 'numeroOrdine', label: 'Numero ordine', type: 'text', required: false },
@@ -270,13 +270,17 @@ export default function App() {
 
   const activityFields = activity ? ACTIVITY_FIELDS[activity.name] || [] : []
 
+  function hasAltroFollowUp(field) {
+    return field.type === 'interruzione' || (field.type === 'select' && field.options?.includes('Altro'))
+  }
+
   function missingRequiredField() {
     return activityFields.find((f) => {
       if (!f.required) return false
-      if (f.type === 'interruzione') {
+      if (hasAltroFollowUp(f)) {
         const val = extraFields[f.key]
         if (!val) return true
-        if (val === 'Altro' && !extraFields.interruzioneAltroTesto?.trim()) return true
+        if (val === 'Altro' && !extraFields[`${f.key}AltroTesto`]?.trim()) return true
         return false
       }
       return !extraFields[f.key]
@@ -304,9 +308,9 @@ export default function App() {
     }
 
     activityFields.forEach((f) => {
-      if (f.type === 'interruzione') {
+      if (hasAltroFollowUp(f)) {
         const val = extraFields[f.key] || ''
-        payload[f.key] = val === 'Altro' ? `Altro: ${extraFields.interruzioneAltroTesto || ''}` : val
+        payload[f.key] = val === 'Altro' ? `Altro: ${extraFields[`${f.key}AltroTesto`] || ''}` : val
       } else {
         payload[f.key] = extraFields[f.key] || ''
       }
@@ -428,13 +432,13 @@ export default function App() {
                       {field.required && <span className="required-mark"> *</span>}
                     </label>
                     <ExtraField field={field} value={extraFields[field.key]} onChange={(v) => setField(field.key, v)} />
-                    {field.type === 'interruzione' && extraFields[field.key] === 'Altro' && (
+                    {hasAltroFollowUp(field) && extraFields[field.key] === 'Altro' && (
                       <input
                         type="text"
                         className="field-input"
                         placeholder="Specifica..."
-                        value={extraFields.interruzioneAltroTesto || ''}
-                        onChange={(e) => setField('interruzioneAltroTesto', e.target.value)}
+                        value={extraFields[`${field.key}AltroTesto`] || ''}
+                        onChange={(e) => setField(`${field.key}AltroTesto`, e.target.value)}
                         style={{ marginTop: 8 }}
                       />
                     )}
