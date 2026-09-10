@@ -144,6 +144,18 @@ function ExtraField({ field, value, onChange }) {
       </select>
     )
   }
+  if (field.type === 'interruzione') {
+    return (
+      <select className="field-input" value={value || ''} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Seleziona…</option>
+        {INTERRUZIONE_OPTIONS.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+    )
+  }
   if (field.type === 'choice') {
     return (
       <div className="toggle-group">
@@ -393,23 +405,11 @@ export default function App() {
           </div>
         )}
 
-        {status === 'stopped' && activity && (
+        {status === 'stopped' && activity && ActivityIcon && (
           <div className="summary">
-            <div className="summary-row">
-              <span>Attività</span>
-              <strong>{activity.name}</strong>
-            </div>
-            <div className="summary-row">
-              <span>Inizio</span>
-              <strong>{formatClock(startWallClock)}</strong>
-            </div>
-            <div className="summary-row">
-              <span>Fine</span>
-              <strong>{formatClock(endWallClock)}</strong>
-            </div>
-            <div className="summary-row">
-              <span>Durata attiva</span>
-              <strong>{Math.round((accumulatedMs / 60000) * 100) / 100} min</strong>
+            <div className="stopped-header">
+              <ActivityIcon size={20} strokeWidth={2} />
+              <span>{activity.name}</span>
             </div>
 
             {activityFields.length > 0 && (

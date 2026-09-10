@@ -285,6 +285,16 @@ button {
   gap: 10px;
 }
 
+.stopped-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--navy-900);
+  padding-bottom: 4px;
+}
+
 .fields-section {
   display: flex;
   flex-direction: column;
