@@ -1,6 +1,6 @@
 // URL della Web App Google Apps Script (endpoint che scrive sul Google Sheet e, per Messa a banco, su Drive)
 export const SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbxtWFazVBNKDSC_VBAk8X2Ro7OYgRaI58pkx3A9EzEwrd5kZ83vYXQklwCkHx0nb8JzZA/exec'
+  'https://script.google.com/macros/s/AKfycbwiaX7qCDsxRm2DKU-lAO3wgwhI4FE5pP2zmoDl4FOaqZDhOT0bZ7fEu4KLKDucMkDReA/exec'
 
 export const REPARTI = [
   'Utensileria',
