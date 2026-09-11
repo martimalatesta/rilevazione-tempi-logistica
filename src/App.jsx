@@ -203,15 +203,23 @@ export default function App() {
     return () => clearInterval(interval)
   }, [status, accumulatedMs])
 
-  function selectActivity(act) {
-    if (status !== 'idle') return
+  function startTimerNow() {
     const now = new Date()
-    setActivity(act)
     setStartWallClock(now)
     runStartRef.current = now.getTime()
     setAccumulatedMs(0)
     setDisplayElapsed(0)
     setStatus('running')
+  }
+
+  function selectActivity(act) {
+    if (status !== 'idle') return
+    setActivity(act)
+    if (act.name === PHOTO_ACTIVITY) {
+      setStatus('preparing')
+    } else {
+      startTimerNow()
+    }
   }
 
   function pause() {
@@ -344,7 +352,6 @@ export default function App() {
     }
   }
 
-  const showPhoto = activity?.name === PHOTO_ACTIVITY
   const ActivityIcon = activity?.icon
 
   return (
@@ -372,6 +379,62 @@ export default function App() {
               })}
             </div>
           </section>
+        )}
+
+        {status === 'preparing' && activity && ActivityIcon && (
+          <div className="summary">
+            <div className="stopped-header">
+              <ActivityIcon size={20} strokeWidth={2} />
+              <span>{activity.name}</span>
+            </div>
+
+            <div className="photo-block">
+              <p className="photo-hint">
+                Allega foto dell&rsquo;elenco dei prodotti che stai mettendo a banco (facoltativo)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoChange}
+                style={{ display: 'none' }}
+              />
+              {!photoDataUrl ? (
+                <>
+                  <button className="photo-btn" onClick={() => fileInputRef.current?.click()}>
+                    <Camera size={20} />
+                    Scatta foto
+                  </button>
+                  <button className="ghost-btn" onClick={startTimerNow}>
+                    Salta foto e avvia
+                  </button>
+                </>
+              ) : (
+                <div className="photo-preview">
+                  <img src={photoDataUrl} alt="Foto messa a banco" />
+                  <div className="photo-actions">
+                    <button className="ghost-btn" onClick={() => fileInputRef.current?.click()}>
+                      Rifai foto
+                    </button>
+                    <button className="icon-btn" onClick={() => setPhotoDataUrl(null)} aria-label="Rimuovi foto">
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {photoDataUrl && (
+              <button className="cta-btn" onClick={startTimerNow}>
+                Avvia rilevazione
+              </button>
+            )}
+
+            <button className="cancel-link" onClick={cancelEntry}>
+              Annulla rilevazione
+            </button>
+          </div>
         )}
 
         {(status === 'running' || status === 'paused') && ActivityIcon && (
@@ -444,38 +507,6 @@ export default function App() {
                     )}
                   </div>
                 ))}
-              </div>
-            )}
-
-            {showPhoto && (
-              <div className="photo-block">
-                <p className="photo-hint">Allega foto dell&rsquo;elenco dei prodotti che stai mettendo a banco</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoChange}
-                  style={{ display: 'none' }}
-                />
-                {!photoDataUrl ? (
-                  <button className="photo-btn" onClick={() => fileInputRef.current?.click()}>
-                    <Camera size={20} />
-                    Scatta foto
-                  </button>
-                ) : (
-                  <div className="photo-preview">
-                    <img src={photoDataUrl} alt="Foto messa a banco" />
-                    <div className="photo-actions">
-                      <button className="ghost-btn" onClick={() => fileInputRef.current?.click()}>
-                        Rifai foto
-                      </button>
-                      <button className="icon-btn" onClick={() => setPhotoDataUrl(null)} aria-label="Rimuovi foto">
-                        <X size={18} />
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
