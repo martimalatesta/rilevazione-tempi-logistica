@@ -1,9 +1,0 @@
-{
-  "name": "Rilevazione Tempi Logistica",
-  "short_name": "Tempi",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#eef1f6",
-  "theme_color": "#0e1f3a",
-  "icons": []
-}
