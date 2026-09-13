@@ -13,5 +13,14 @@ const OUT_NUMERIC_FIELDS = [
 
 export const OUT_ACTIVITY_FIELDS = {
   Prelievo: [{ key: 'reparto', label: 'Reparto', type: 'select', options: REPARTI, required: false }, ...OUT_NUMERIC_FIELDS],
-  Consolidazione: [...OUT_NUMERIC_FIELDS],
+  Consolidazione: [
+    {
+      key: 'stessoReparto',
+      label: 'Gli articoli prelevati per questo ordine provengono dallo stesso reparto?',
+      type: 'choice',
+      options: ['Sì', 'No'],
+      required: false,
+    },
+    ...OUT_NUMERIC_FIELDS,
+  ],
 }
