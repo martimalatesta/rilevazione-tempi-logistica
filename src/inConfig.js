@@ -21,7 +21,10 @@ const ORDINE_EXTRA_FIELDS = [
 ]
 
 export const IN_ACTIVITY_FIELDS = {
-  Scarico: [{ key: 'origine', label: 'Origine', type: 'choice', options: ['Corriere', 'Piattaforma'], required: false }],
+  Scarico: [
+    { key: 'origine', label: 'Origine', type: 'choice', options: ['Corriere', 'Piattaforma'], required: false },
+    { key: 'numeroBancali', label: 'Numero bancali', type: 'number', required: false },
+  ],
   Spunta: [REPARTO_FIELD, ...ORDINE_EXTRA_FIELDS],
   Riconta: [REPARTO_FIELD, ...ORDINE_EXTRA_FIELDS],
   'Messa a banco': [
