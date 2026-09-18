@@ -24,7 +24,7 @@ export default function StoreGate({ children }) {
           <input
             type="text"
             className="field-input"
-            placeholder="Es. Milano Centro"
+            placeholder="Es. Pero, Cerro Maggiore"
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
