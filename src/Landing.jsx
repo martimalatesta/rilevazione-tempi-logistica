@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { LogIn, LogOut } from 'lucide-react'
 import { getOperatorId } from './shared.jsx'
+import { StoreChip } from './StoreContext.jsx'
 import { useState } from 'react'
 
 export default function Landing() {
@@ -10,8 +11,13 @@ export default function Landing() {
   return (
     <div className="app">
       <header className="header">
-        <span className="header-title">Rilevazione Tempi</span>
-        <span className="operator-chip">{operatorId}</span>
+        <div className="header-top">
+          <span className="header-title">Rilevazione Tempi</span>
+        </div>
+        <div className="header-meta">
+          <StoreChip />
+          <span className="operator-chip">{operatorId}</span>
+        </div>
       </header>
 
       <main className="main landing-main">

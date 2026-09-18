@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Pause, Play, Square, Camera, X, Home } from 'lucide-react'
 import { SCRIPT_URL, getOperatorId, formatClock, formatElapsed, resizeImage, hasAltroFollowUp, ExtraField } from './shared.jsx'
+import { StoreChip, useStore } from './StoreContext.jsx'
 
 export default function TimerFlow({ sezione, sectionLabel, activities, activityFieldsMap, photoActivityName, photoHint }) {
   const navigate = useNavigate()
+  const { storeName } = useStore()
   const [operatorId] = useState(getOperatorId)
   const [activity, setActivity] = useState(null)
   const [status, setStatus] = useState('idle') // idle | preparing | running | paused | stopped
@@ -131,6 +133,7 @@ export default function TimerFlow({ sezione, sectionLabel, activities, activityF
     const durata = Math.round((accumulatedMs / 60000) * 100) / 100
     const payload = {
       sezione,
+      negozio: storeName,
       operatore: operatorId,
       attivita: activity.name,
       oraInizio: formatClock(startWallClock),
@@ -182,11 +185,16 @@ export default function TimerFlow({ sezione, sectionLabel, activities, activityF
   return (
     <div className="app">
       <header className="header">
-        <button className="home-btn" onClick={() => navigate('/')} aria-label="Torna alla home">
-          <Home size={20} />
-        </button>
-        <span className="header-title">Rilevazione Tempi · {sectionLabel}</span>
-        <span className="operator-chip">{operatorId}</span>
+        <div className="header-top">
+          <button className="home-btn" onClick={() => navigate('/')} aria-label="Torna alla home">
+            <Home size={20} />
+          </button>
+          <span className="header-title">Rilevazione Tempi · {sectionLabel}</span>
+        </div>
+        <div className="header-meta">
+          <StoreChip />
+          <span className="operator-chip">{operatorId}</span>
+        </div>
       </header>
 
       <main className="main">
